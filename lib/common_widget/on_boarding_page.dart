@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../common/colo_extension.dart';
@@ -9,20 +8,29 @@ class OnBoardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-     var media = MediaQuery.of(context).size;
-    return 
-    
-    SizedBox(
+    var media = MediaQuery.of(context).size;
+    return SizedBox(
       width: media.width,
       height: media.height,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Image.asset(
-            pObj["image"].toString(),
-            width: media.width,
-            fit: BoxFit.fitWidth,
+          // Image with green overlay
+          Stack(
+            children: [
+              Image.asset(
+                pObj["image"].toString(),
+                width: media.width,
+                fit: BoxFit.fitWidth,
+              ),
+              // Green overlay with opacity
+              Container(
+                width: media.width,
+                height: media.height * 0.6,
+                color: Colors.green.withOpacity(0.4),
+              ),
+            ],
           ),
           SizedBox(
             height: media.width * 0.1,

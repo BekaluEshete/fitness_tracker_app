@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-
 import '../../common/colo_extension.dart';
 import '../../common_widget/notification_row.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_notifire_api.dart';
 
 class NotificationView extends StatefulWidget {
   const NotificationView({super.key});
@@ -11,14 +12,46 @@ class NotificationView extends StatefulWidget {
 }
 
 class _NotificationViewState extends State<NotificationView> {
+  final FirebaseNotifireApi _firebaseNotifireApi = FirebaseNotifireApi();
+
   List notificationArr = [
-    {"image": "assets/img/Workout1.png", "title": "Hey, it’s time for lunch", "time": "About 1 minutes ago"},
-    {"image": "assets/img/Workout2.png", "title": "Don’t miss your lowerbody workout", "time": "About 3 hours ago"},
-    {"image": "assets/img/Workout3.png", "title": "Hey, let’s add some meals for your b", "time": "About 3 hours ago"},
-    {"image": "assets/img/Workout1.png", "title": "Congratulations, You have finished A..", "time": "29 May"},
-    {"image": "assets/img/Workout2.png", "title": "Hey, it’s time for lunch", "time": "8 April"},
-    {"image": "assets/img/Workout3.png", "title": "Ups, You have missed your Lowerbo...", "time": "8 April"},
+    {
+      "image": "assets/img/Workout1.png",
+      "title": "Hey, it’s time for lunch",
+      "time": "About 1 minute ago"
+    },
+    {
+      "image": "assets/img/Workout2.png",
+      "title": "Don’t miss your lower body workout",
+      "time": "About 3 hours ago"
+    },
+    {
+      "image": "assets/img/Workout3.png",
+      "title": "Hey, let’s add some meals for your b",
+      "time": "About 3 hours ago"
+    },
+    {
+      "image": "assets/img/Workout1.png",
+      "title": "Congratulations, You have finished A..",
+      "time": "29 May"
+    },
+    {
+      "image": "assets/img/Workout2.png",
+      "title": "Hey, it’s time for lunch",
+      "time": "8 April"
+    },
+    {
+      "image": "assets/img/Workout3.png",
+      "title": "Oops, You have missed your Lowerbo...",
+      "time": "8 April"
+    },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _firebaseNotifireApi.initNotificationPush();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +70,9 @@ class _NotificationViewState extends State<NotificationView> {
             width: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-                color: TColor.lightGray,
-                borderRadius: BorderRadius.circular(10)),
+              color: TColor.lightGray,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Image.asset(
               "assets/img/black_btn.png",
               width: 15,
@@ -61,8 +95,9 @@ class _NotificationViewState extends State<NotificationView> {
               width: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                  color: TColor.lightGray,
-                  borderRadius: BorderRadius.circular(10)),
+                color: TColor.lightGray,
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: Image.asset(
                 "assets/img/more_btn.png",
                 width: 12,
@@ -70,7 +105,7 @@ class _NotificationViewState extends State<NotificationView> {
                 fit: BoxFit.contain,
               ),
             ),
-          )
+          ),
         ],
       ),
       backgroundColor: TColor.white,
@@ -79,9 +114,15 @@ class _NotificationViewState extends State<NotificationView> {
         itemBuilder: ((context, index) {
           var nObj = notificationArr[index] as Map? ?? {};
           return NotificationRow(nObj: nObj);
-      }), separatorBuilder: (context, index){
-        return Divider(color: TColor.gray.withOpacity(0.5), height: 1, );
-      }, itemCount: notificationArr.length),
+        }),
+        separatorBuilder: (context, index) {
+          return Divider(
+            color: TColor.gray.withOpacity(0.5),
+            height: 1,
+          );
+        },
+        itemCount: notificationArr.length,
+      ),
     );
   }
 }

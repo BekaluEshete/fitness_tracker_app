@@ -1,6 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../common/colo_extension.dart';
 import '../../common_widget/latest_activity_row.dart';
 import '../../common_widget/today_target_cell.dart';
@@ -13,7 +13,12 @@ class ActivityTrackerView extends StatefulWidget {
 }
 
 class _ActivityTrackerViewState extends State<ActivityTrackerView> {
-    int touchedIndex = -1;
+  int touchedIndex = -1;
+  String selectedProgress = "Daily";
+
+  // Variables for dynamic water intake and footsteps
+  double waterIntake = 0.0; // in liters
+  int footSteps = 0;
 
   List latestArr = [
     {
@@ -27,10 +32,40 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
       "time": "About 3 hours ago"
     },
   ];
+  // Reference to Firestore
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  // Load waterIntake and footSteps from Firestore
+  Future<void> _loadUserData() async {
+    DocumentSnapshot snapshot =
+        await _firestore.collection('activityTracker').doc('userId').get();
+
+    if (snapshot.exists) {
+      setState(() {
+        waterIntake = snapshot['waterIntake'] ?? 0.0;
+        footSteps = snapshot['footSteps'] ?? 0;
+      });
+    }
+  }
+
+  // Save waterIntake and footSteps to Firestore
+  Future<void> _saveUserData() async {
+    await _firestore.collection('activityTracker').doc('userId').set({
+      'waterIntake': waterIntake,
+      'footSteps': footSteps,
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     var media = MediaQuery.of(context).size;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: TColor.white,
@@ -121,7 +156,9 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: MaterialButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  // Handle any button press here if needed
+                                },
                                 padding: EdgeInsets.zero,
                                 height: 30,
                                 shape: RoundedRectangleBorder(
@@ -139,30 +176,82 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
                         )
                       ],
                     ),
-                    const SizedBox(
-                      height: 15,
-                    ),
-                    const Row(
+                    const SizedBox(height: 15),
+
+                    // Dynamic Water Intake and Footsteps Widgets
+                    Row(
                       children: [
                         Expanded(
                           child: TodayTargetCell(
                             icon: "assets/img/water.png",
-                            value: "8L",
+                            value: "${waterIntake.toStringAsFixed(1)}L",
                             title: "Water Intake",
                           ),
                         ),
-                        SizedBox(
-                          width: 15,
-                        ),
+                        const SizedBox(width: 15),
                         Expanded(
                           child: TodayTargetCell(
                             icon: "assets/img/foot.png",
-                            value: "2400",
+                            value: "$footSteps",
                             title: "Foot Steps",
                           ),
                         ),
                       ],
-                    )
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Sliders for updating water intake and foot steps
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Adjust Water Intake (L)",
+                                style: TextStyle(fontSize: 14)),
+                            Text("${waterIntake.toStringAsFixed(1)}L",
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        Slider(
+                          value: waterIntake,
+                          min: 0.0,
+                          max: 10.0,
+                          divisions: 100,
+                          label: "${waterIntake.toStringAsFixed(1)}L",
+                          onChanged: (value) {
+                            setState(() {
+                              waterIntake = value;
+                              _saveUserData(); // Save to Firestore
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Adjust Foot Steps",
+                                style: TextStyle(fontSize: 14)),
+                            Text("$footSteps steps",
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        Slider(
+                          value: footSteps.toDouble(),
+                          min: 0,
+                          max: 20000,
+                          divisions: 200,
+                          label: "$footSteps",
+                          onChanged: (value) {
+                            setState(() {
+                              footSteps = value.toInt();
+                              _saveUserData(); // Save to Firestore
+                            });
+                          },
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -188,7 +277,8 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton(
-                          items: ["Weekly", "Monthly"]
+                          value: selectedProgress,
+                          items: ["Daily", "Weekly"]
                               .map((name) => DropdownMenuItem(
                                     value: name,
                                     child: Text(
@@ -198,7 +288,11 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
                                     ),
                                   ))
                               .toList(),
-                          onChanged: (value) {},
+                          onChanged: (value) {
+                            setState(() {
+                              selectedProgress = value!;
+                            });
+                          },
                           icon: Icon(Icons.expand_more, color: TColor.white),
                           hint: Text(
                             "Weekly",
@@ -209,23 +303,20 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
                       )),
                 ],
               ),
-
               SizedBox(
                 height: media.width * 0.05,
               ),
-
+              // Bar chart widget
               Container(
                 height: media.width * 0.5,
-                padding: const EdgeInsets.symmetric(vertical: 15 , horizontal: 0),
+                padding: const EdgeInsets.symmetric(vertical: 15),
                 decoration: BoxDecoration(
                     color: TColor.white,
                     borderRadius: BorderRadius.circular(15),
                     boxShadow: const [
                       BoxShadow(color: Colors.black12, blurRadius: 3)
                     ]),
-                    child: BarChart(
-                      
-                      BarChartData(
+                child: BarChart(BarChartData(
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
                       tooltipBgColor: Colors.grey,
@@ -293,12 +384,6 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
                   ),
                   titlesData: FlTitlesData(
                     show: true,
-                    rightTitles:  AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles:  AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
@@ -306,58 +391,16 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
                         reservedSize: 38,
                       ),
                     ),
-                    leftTitles:  AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: false,
-                      ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
                     ),
                   ),
                   borderData: FlBorderData(
                     show: false,
                   ),
                   barGroups: showingGroups(),
-                  gridData:  FlGridData(show: false),
-                )
-                    
-                  ),
-              ),
-              
-              SizedBox(
-                height: media.width * 0.05,
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Latest Workout",
-                    style: TextStyle(
-                        color: TColor.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(
-                      "See More",
-                      style: TextStyle(
-                          color: TColor.gray,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  )
-                ],
-              ),
-              ListView.builder(
-                  padding: EdgeInsets.zero,
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  itemCount: latestArr.length,
-                  itemBuilder: (context, index) {
-                    var wObj = latestArr[index] as Map? ?? {};
-                    return LatestActivityRow(wObj: wObj);
-                  }),
-              SizedBox(
-                height: media.width * 0.1,
+                  gridData: FlGridData(show: false),
+                )),
               ),
             ],
           ),
@@ -366,96 +409,45 @@ class _ActivityTrackerViewState extends State<ActivityTrackerView> {
     );
   }
 
+  List<BarChartGroupData> showingGroups() {
+    return List.generate(7, (index) {
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            toY: (index + 1) * 5.0, // Adjusted dynamically for each day
+            color: touchedIndex == index ? TColor.primaryColor1 : TColor.gray,
+            width: 22,
+            borderRadius: BorderRadius.circular(5),
+          ),
+        ],
+      );
+    });
+  }
+
   Widget getTitles(double value, TitleMeta meta) {
-    var style = TextStyle(
-      color: TColor.gray,
-      fontWeight: FontWeight.w500,
-      fontSize: 12,
+    const style = TextStyle(
+      color: Color.fromARGB(255, 5, 193, 14),
+      fontWeight: FontWeight.bold,
+      fontSize: 14,
     );
-    Widget text;
     switch (value.toInt()) {
       case 0:
-        text =  Text('Sun', style: style);
-        break;
+        return Text('M', style: style);
       case 1:
-        text =  Text('Mon', style: style);
-        break;
+        return Text('T', style: style);
       case 2:
-        text =  Text('Tue', style: style);
-        break;
+        return Text('W', style: style);
       case 3:
-        text =  Text('Wed', style: style);
-        break;
+        return Text('T', style: style);
       case 4:
-        text =  Text('Thu', style: style);
-        break;
+        return Text('F', style: style);
       case 5:
-        text =  Text('Fri', style: style);
-        break;
+        return Text('S', style: style);
       case 6:
-        text =  Text('Sat', style: style);
-        break;
+        return Text('S', style: style);
       default:
-        text =  Text('', style: style);
-        break;
+        return Text('', style: style);
     }
-    return SideTitleWidget(
-      axisSide: meta.axisSide,
-      space: 16,
-      child: text,
-    );
   }
-   List<BarChartGroupData> showingGroups() => List.generate(7, (i) {
-        switch (i) {
-          case 0:
-            return makeGroupData(0, 5, TColor.primaryG , isTouched: i == touchedIndex);
-          case 1:
-            return makeGroupData(1, 10.5, TColor.secondaryG, isTouched: i == touchedIndex);
-          case 2:
-            return makeGroupData(2, 5, TColor.primaryG , isTouched: i == touchedIndex);
-          case 3:
-            return makeGroupData(3, 7.5, TColor.secondaryG, isTouched: i == touchedIndex);
-          case 4:
-            return makeGroupData(4, 15, TColor.primaryG , isTouched: i == touchedIndex);
-          case 5:
-            return makeGroupData(5, 5.5, TColor.secondaryG, isTouched: i == touchedIndex);
-          case 6:
-            return makeGroupData(6, 8.5, TColor.primaryG , isTouched: i == touchedIndex);
-          default:
-            return throw Error();
-        }
-      });
-
-    BarChartGroupData makeGroupData(
-    int x,
-    double y,
-    List<Color> barColor,
-     {
-    bool isTouched = false,
-    
-    double width = 22,
-    List<int> showTooltips = const [],
-  }) {
-    
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: isTouched ? y + 1 : y,
-          gradient: LinearGradient(colors: barColor, begin: Alignment.topCenter, end: Alignment.bottomCenter ),
-          width: width,
-          borderSide: isTouched
-              ? const BorderSide(color: Colors.green)
-              : const BorderSide(color: Colors.white, width: 0),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: 20,
-            color: TColor.lightGray,
-          ),
-        ),
-      ],
-      showingTooltipIndicators: showTooltips,
-    );
-  }
-
 }

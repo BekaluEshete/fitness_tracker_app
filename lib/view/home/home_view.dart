@@ -9,6 +9,8 @@ import '../../common/colo_extension.dart';
 import 'activity_tracker_view.dart';
 import 'finished_workout_view.dart';
 import 'notification_view.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -18,6 +20,136 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  String firstName = '';
+  String lastName = '';
+  double weight = 0;
+  double height = 0;
+  String bmiStatus = "Loading...";
+  double bmi = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        DocumentSnapshot userData = await FirebaseFirestore.instance
+            .collection('userdata')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          setState(() {
+            firstName = userDoc.get('first_name');
+            lastName = userDoc.get('last_name');
+            weight =
+                double.tryParse(userData.get('weight')?.toString() ?? '0') ?? 0;
+            height =
+                double.tryParse(userData.get('height')?.toString() ?? '0') ?? 0;
+
+            _calculateBMI();
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading user data: $e");
+    }
+  }
+
+  void _calculateBMI() {
+    if (weight > 0 && height > 0) {
+      double heightInMeters = height / 100;
+      bmi = weight / (heightInMeters * heightInMeters);
+      print('Calculated BMI: $bmi'); // Debug print
+      setState(() {
+        if (bmi < 18.5) {
+          bmiStatus = "You are underweight";
+        } else if (bmi >= 18.5 && bmi < 24.9) {
+          bmiStatus = "You have a normal weight";
+        } else if (bmi >= 25 && bmi < 29.9) {
+          bmiStatus = "You are overweight";
+        } else {
+          bmiStatus = "You are obese";
+        }
+      });
+    }
+  }
+
+  Widget _buildHealthRecommendations() {
+    String recommendation;
+
+    if (bmi < 18.5) {
+      recommendation =
+          "You are underweight. Consider a balanced diet rich in proteins, carbs, and healthy fats to gain weight.";
+    } else if (bmi >= 18.5 && bmi < 24.9) {
+      recommendation =
+          "You have a normal weight. Keep up the good work! Maintain a balanced diet and regular exercise.";
+    } else if (bmi >= 25 && bmi < 29.9) {
+      recommendation =
+          "You are overweight. Regular exercise and a healthy diet can help manage your weight effectively.";
+    } else {
+      recommendation =
+          "You are obese. Consult a healthcare professional for personalized advice and a weight management plan.";
+    }
+
+    return Text(
+      recommendation,
+      style: TextStyle(
+        fontSize: 16,
+        color: Colors.black87,
+      ),
+    );
+  }
+
+  // Build pie chart sections for BMI categories
+  List<PieChartSectionData> _buildBMIPieChartSections() {
+    const underweightColor = Color(0xFF00A1E4); // Blue color
+    const normalWeightColor = Color(0xFF00E676); // Green color
+    const overweightColor = Color(0xFFFFC107); // Amber color
+    const obeseColor = Color(0xFFFF5722); // Deep Orange color
+
+    // Calculate the highlight percentage based on user's BMI
+    double underweightPercentage = bmi < 18.5 ? 100 : 0;
+    double normalWeightPercentage = (bmi >= 18.5 && bmi < 24.9) ? 100 : 0;
+    double overweightPercentage = (bmi >= 25 && bmi < 29.9) ? 100 : 0;
+    double obesePercentage = (bmi >= 30) ? 100 : 0;
+
+    return [
+      PieChartSectionData(
+        color: underweightColor,
+        value: underweightPercentage,
+        title: underweightPercentage > 0 ? 'Underweight,' : '',
+        radius: underweightPercentage > 0 ? 60 : 50,
+      ),
+      PieChartSectionData(
+        color: normalWeightColor,
+        value: normalWeightPercentage,
+        title: normalWeightPercentage > 0 ? 'Normal' : '',
+        radius: normalWeightPercentage > 0 ? 60 : 50,
+      ),
+      PieChartSectionData(
+        color: overweightColor,
+        value: overweightPercentage,
+        title: overweightPercentage > 0 ? 'Overweight' : '',
+        radius: overweightPercentage > 0 ? 60 : 50,
+      ),
+      PieChartSectionData(
+        color: obeseColor,
+        value: obesePercentage,
+        title: obesePercentage > 0 ? 'Obese' : '',
+        radius: obesePercentage > 0 ? 60 : 50,
+      ),
+    ];
+  }
+
   List lastWorkoutArr = [
     {
       "name": "Full Body Workout",
@@ -131,7 +263,7 @@ class _HomeViewState extends State<HomeView> {
                           style: TextStyle(color: TColor.gray, fontSize: 12),
                         ),
                         Text(
-                          "Stefani Wong",
+                          " $firstName $lastName",
                           style: TextStyle(
                               color: TColor.black,
                               fontSize: 20,
@@ -189,7 +321,7 @@ class _HomeViewState extends State<HomeView> {
                                     fontWeight: FontWeight.w700),
                               ),
                               Text(
-                                "You have a normal weight",
+                                bmiStatus,
                                 style: TextStyle(
                                     color: TColor.white.withOpacity(0.7),
                                     fontSize: 12),
@@ -205,24 +337,65 @@ class _HomeViewState extends State<HomeView> {
                                       type: RoundButtonType.bgSGradient,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w400,
-                                      onPressed: () {}))
+                                      onPressed: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return Container(
+                                              padding:
+                                                  const EdgeInsets.all(20.0),
+                                              height:
+                                                  300, // Adjust the height as needed
+                                              decoration: const BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.only(
+                                                  topLeft: Radius.circular(20),
+                                                  topRight: Radius.circular(20),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'BMI Details',
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Text(
+                                                    'Your BMI: ${bmi.toStringAsFixed(2)}',
+                                                    style: const TextStyle(
+                                                        fontSize: 18),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Text(
+                                                    'BMI Status: $bmiStatus',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  _buildHealthRecommendations(), // Function for showing recommendations
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      }))
                             ],
                           ),
                           AspectRatio(
                             aspectRatio: 1,
                             child: PieChart(
                               PieChartData(
-                                pieTouchData: PieTouchData(
-                                  touchCallback:
-                                      (FlTouchEvent event, pieTouchResponse) {},
-                                ),
-                                startDegreeOffset: 250,
-                                borderData: FlBorderData(
-                                  show: false,
-                                ),
-                                sectionsSpace: 1,
-                                centerSpaceRadius: 0,
-                                sections: showingSections(),
+                                sections: _buildBMIPieChartSections(),
                               ),
                             ),
                           ),

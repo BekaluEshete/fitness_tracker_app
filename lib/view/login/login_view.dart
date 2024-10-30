@@ -2,7 +2,10 @@ import 'package:fitness/common/colo_extension.dart';
 import 'package:fitness/common_widget/round_button.dart';
 import 'package:fitness/common_widget/round_textfield.dart';
 import 'package:fitness/view/login/complete_profile_view.dart';
+import 'package:fitness/view/login/forgot_password.dart';
+import 'package:fitness/view/login/welcome_view.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -13,6 +16,58 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   bool isCheck = false;
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loginWithEmailAndPassword() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        UserCredential userCredential =
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        // If login is successful, navigate to the Welcome screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const WelcomeView()),
+        );
+      } on FirebaseAuthException catch (e) {
+        // Handle errors and display appropriate messages
+        String message;
+        if (e.code == 'user-not-found') {
+          message = 'No user found for this email.';
+        } else if (e.code == 'wrong-password') {
+          message = 'Incorrect password.';
+        } else {
+          message = 'Login failed. Please try again.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var media = MediaQuery.of(context).size;
@@ -40,57 +95,84 @@ class _LoginViewState extends State<LoginView> {
                 SizedBox(
                   height: media.width * 0.05,
                 ),
-                SizedBox(
-                  height: media.width * 0.04,
-                ),
-                const RoundTextField(
-                  hitText: "Email",
-                  icon: "assets/img/email.png",
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                SizedBox(
-                  height: media.width * 0.04,
-                ),
-                RoundTextField(
-                  hitText: "Password",
-                  icon: "assets/img/lock.png",
-                  obscureText: true,
-                  rigtIcon: TextButton(
-                      onPressed: () {},
-                      child: Container(
-                          alignment: Alignment.center,
-                          width: 20,
-                          height: 20,
-                          child: Image.asset(
-                            "assets/img/show_password.png",
-                            width: 20,
-                            height: 20,
-                            fit: BoxFit.contain,
-                            color: TColor.gray,
-                          ))),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Forgot your password?",
-                      style: TextStyle(
-                          color: TColor.gray,
-                          fontSize: 10,
-                          decoration: TextDecoration.underline),
+                const SizedBox(height: 14),
+                Container(
+                  alignment: Alignment.topCenter,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(
+                            labelText: "Email",
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your email';
+                            }
+                            if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
+                              return 'Please enter a valid email';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: !_isPasswordVisible,
+                          decoration: InputDecoration(
+                            labelText: "Password",
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordVisible = !_isPasswordVisible;
+                                });
+                              },
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your password';
+                            }
+                            if (value.length < 6) {
+                              return 'Password must be at least 6 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPassword(),
+                              ),
+                            );
+                          },
+                          child: Text('Forgot Password?'),
+                        )
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-               const Spacer(),
-                RoundButton(
-                    title: "Login",
-                    onPressed: () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const CompleteProfileView()));
-                    }),
+                const SizedBox(height: 44),
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TColor.primaryColor1,
+                        ),
+                        onPressed: _loginWithEmailAndPassword,
+                        child: const Text("Login"),
+                      ),
                 SizedBox(
                   height: media.width * 0.04,
                 ),

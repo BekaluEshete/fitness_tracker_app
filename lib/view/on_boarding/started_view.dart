@@ -19,31 +19,37 @@ class _StartedViewState extends State<StartedView> {
     var media = MediaQuery.of(context).size;
     return Scaffold(
       backgroundColor: TColor.white,
-      body: Container(
-          width: media.width,
-          decoration: BoxDecoration(
-            gradient: isChangeColor
-                ? LinearGradient(
-                    colors: TColor.primaryG,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight)
-                : null,
+      body: Stack(
+        children: [
+          // Background Image
+          Image.asset(
+            "assets/img/start.jpg",
+            fit: BoxFit.cover,
+            width: media.width,
+            height: media.height,
           ),
-          child: Column(
+
+          if (isChangeColor)
+            Container(
+              color: Colors.green.withOpacity(0.8), // Adjust opacity as needed
+            ),
+
+          // Main Content
+          Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
               Text(
-                "Fitness",
+                "Tracking Fitness",
                 style: TextStyle(
-                    color: TColor.black,
+                    color: TColor.white,
                     fontSize: 36,
                     fontWeight: FontWeight.w700),
               ),
               Text(
-                "Everybody Can Train",
+                "Everybody Can Train, and Become Healthy",
                 style: TextStyle(
-                  color: TColor.gray,
+                  color: TColor.white,
                   fontSize: 18,
                 ),
               ),
@@ -58,13 +64,13 @@ class _StartedViewState extends State<StartedView> {
                         : RoundButtonType.bgGradient,
                     onPressed: () {
                       if (isChangeColor) {
-                        //GO Next Screen
+                        // GO Next Screen
                         Navigator.push(
                             context,
                             MaterialPageRoute(
                                 builder: (context) => const OnBoardingView()));
                       } else {
-                        //Change Color
+                        // Change Color
                         setState(() {
                           isChangeColor = true;
                         });
@@ -72,9 +78,11 @@ class _StartedViewState extends State<StartedView> {
                     },
                   ),
                 ),
-              )
+              ),
             ],
-          )),
+          ),
+        ],
+      ),
     );
   }
 }

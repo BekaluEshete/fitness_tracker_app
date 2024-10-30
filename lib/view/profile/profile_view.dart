@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../common/colo_extension.dart';
 import '../../common_widget/round_button.dart';
@@ -15,6 +17,38 @@ class ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<ProfileView> {
   bool positive = false;
+  String firstName = '';
+  String lastName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData(); // Load user data when the view initializes
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      // Get the current user
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Retrieve user data from Firestore
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        // Check if the document exists and set the first name and last name
+        if (userDoc.exists) {
+          setState(() {
+            firstName = userDoc.get('first_name');
+            lastName = userDoc.get('last_name');
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading user data: $e");
+    }
+  }
 
   List accountArr = [
     {"image": "assets/img/p_personal.png", "name": "Personal Data", "tag": "1"},
@@ -96,7 +130,7 @@ class _ProfileViewState extends State<ProfileView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Stefani Wong",
+                          "$firstName,$lastName",
                           style: TextStyle(
                             color: TColor.black,
                             fontSize: 14,
@@ -121,14 +155,7 @@ class _ProfileViewState extends State<ProfileView> {
                       type: RoundButtonType.bgGradient,
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
-                      onPressed: () {
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //     builder: (context) => const ActivityTrackerView(),
-                        //   ),
-                        // );
-                      },
+                      onPressed: () {},
                     ),
                   )
                 ],
@@ -273,11 +300,10 @@ class _ProfileViewState extends State<ProfileView> {
                                     Positioned(
                                         left: 10.0,
                                         right: 10.0,
-                                        
                                         height: 30.0,
                                         child: DecoratedBox(
                                           decoration: BoxDecoration(
-                                             gradient: LinearGradient(
+                                            gradient: LinearGradient(
                                                 colors: TColor.secondaryG),
                                             borderRadius:
                                                 const BorderRadius.all(
